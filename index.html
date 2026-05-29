@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora — Rádio de Galena · FIS003 UTFPR Toledo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --accent: #1D9E75;
+    --accent-light: #E1F5EE;
+    --accent-dark: #0F6E56;
+    --bg: #ffffff;
+    --bg-sec: #f7f7f6;
+    --bg-tert: #f0f0ee;
+    --text: #1a1a18;
+    --text-sec: #6b6b67;
+    --border: rgba(0,0,0,0.12);
+    --danger-bg: #FCEBEB;
+    --danger-text: #A32D2D;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font: 'IBM Plex Sans', -apple-system, sans-serif;
+    --mono: 'IBM Plex Mono', 'Fira Code', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg-sec: #242422; --bg-tert: #2c2c2a; --text: #f0efe8;
+      --text-sec: #9a9994; --border: rgba(255,255,255,0.12);
+      --danger-bg: #501313; --danger-text: #F7C1C1;
+      --accent-light: #04342C; --accent-dark: #5DCAA5;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg-sec); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  header p { font-size: 13px; color: var(--text-sec); margin-top: 4px; font-family: var(--mono); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap { display: flex; align-items: center; gap: 0; margin-bottom: 2rem; }
+  .prog-step { display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 10px; font-size: 12px; font-weight: 500; color: var(--text-sec); border-radius: 20px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+  .prog-step.active { background: var(--accent); color: #fff; }
+  .prog-step.done { background: var(--accent-light); color: var(--accent-dark); }
+  .prog-step.disabled { pointer-events: none; opacity: .45; }
+  .prog-step span.num { width: 20px; height: 20px; border-radius: 50%; background: currentColor; color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .prog-step.active span.num { background: rgba(255,255,255,0.35); color: #fff; }
+  .prog-step.done span.num { background: var(--accent); color: #fff; }
+  .prog-arrow { font-size: 10px; color: var(--border); margin: 0 4px; }
+
+  /* ── TELAS ── */
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeUp .25s ease; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── MENU ── */
+  .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 1rem; }
+  .topo-card { background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem 1.25rem; cursor: pointer; transition: all .2s; position: relative; overflow: hidden; }
+  .topo-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(29,158,117,.15); }
+  .topo-card.selected { border-color: var(--accent); background: var(--accent-light); }
+  .topo-card.selected::after { content: '✓'; position: absolute; top: 12px; right: 14px; font-size: 14px; font-weight: 700; color: var(--accent); }
+  .topo-icon { font-size: 32px; margin-bottom: 10px; }
+  .topo-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .topo-desc { font-size: 12px; color: var(--text-sec); line-height: 1.5; }
+
+  /* ── CARDS ── */
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+
+  /* ── DISP EQUACAO ── */
+  .eq-box { background: var(--bg-tert); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .eq-rendered { font-family: var(--mono); font-size: 18px; font-weight: 500; letter-spacing: .02em; color: var(--text); text-align: center; line-height: 1.8; }
+  .eq-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 2px; }
+  .eq-frac .num { border-bottom: 2px solid var(--text); padding: 0 6px 3px; }
+  .eq-frac .den { padding: 3px 6px 0; }
+  .eq-label { font-size: 11px; color: var(--text-sec); }
+
+  /* ── FIELDS ── */
+  .field { margin-bottom: 0.875rem; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 13px; color: var(--text-sec); margin-bottom: 5px; }
+  .field-row { display: flex; gap: 8px; align-items: center; }
+  .field-row input[type=number] { flex: 1; }
+  .field-row select { width: 72px; }
+  input[type=number], select { height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 14px; background: var(--bg-sec); color: var(--text); font-family: var(--font); }
+  input[type=number]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .radio-group { display: flex; gap: 16px; flex-wrap: wrap; }
+  .radio-label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .radio-label input { accent-color: var(--accent); }
+
+  /* ── BOT ── */
+  .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: .5rem; }
+  .btn { height: 38px; padding: 0 20px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font); transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { background: var(--accent-dark); }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg-tert); }
+  .btn-continue { background: var(--accent-dark); }
+  .btn-continue:hover { background: #085040; }
+  .btn-continue[disabled] { opacity: .4; pointer-events: none; }
+
+  /* ── RESULTADOS ── */
+  .results { background: var(--bg-sec); border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-top: 1rem; }
+  .result-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .result-row:last-child { border-bottom: none; }
+  .rl { font-size: 13px; color: var(--text-sec); }
+  .rv { font-size: 14px; font-weight: 500; font-family: var(--mono); }
+  .rv.hi { color: var(--accent); }
+  .error { font-size: 13px; color: var(--danger-text); background: var(--danger-bg); border-radius: var(--radius-md); padding: 10px 14px; margin-top: 10px; }
+  .info { font-size: 13px; color: var(--accent-dark); background: var(--accent-light); border-radius: var(--radius-md); padding: 10px 14px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 1rem; }
+  .metric { background: var(--bg-sec); border-radius: var(--radius-md); padding: 12px 14px; }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 4px; }
+  .metric-value { font-size: 18px; font-weight: 600; font-family: var(--mono); }
+  .metric-unit { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+
+  /* ── NAGAOKA ── */
+  table.nag { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.nag th { text-align: left; padding: 8px 12px; font-weight: 500; color: var(--text-sec); border-bottom: 1px solid var(--border); }
+  table.nag td { padding: 7px 12px; font-family: var(--mono); border-bottom: 1px solid var(--border); }
+  table.nag tr:last-child td { border-bottom: none; }
+  table.nag tr.hi td { background: var(--accent-light); color: var(--accent-dark); font-weight: 600; }
+
+  /* ── SUMMARY ── */
+  .summary-section { margin-bottom: 1.25rem; }
+  .summary-section-title { font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .75rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+  .summary-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px; margin-bottom: 1rem; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .summary-item { background: var(--bg-sec); border-radius: var(--radius-md); padding: 10px 14px; }
+  .summary-item-label { font-size: 11px; color: var(--text-sec); margin-bottom: 3px; }
+  .summary-item-value { font-size: 15px; font-weight: 600; font-family: var(--mono); color: var(--text); }
+  .summary-item.hi .summary-item-value { color: var(--accent); }
+
+  .section-screen-title { font-size: 18px; font-weight: 600; letter-spacing: -.02em; margin-bottom: .25rem; }
+  .section-screen-sub { font-size: 13px; color: var(--text-sec); margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Rádio de Galena — Calculadora</h1>
+    <p>FIS003 · UTFPR Campus Toledo</p>
+  </header>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progress-bar">
+    <div class="prog-step active" id="ps-menu" onclick="goToScreen('menu')">
+      <span class="num">1</span> Topologia
+    </div>
+    <div class="prog-arrow">›</div>
+    <div class="prog-step disabled" id="ps-lc" onclick="goToScreen('lc')">
+      <span class="num">2</span> <span id="ps-lc-label">L / C</span>
+    </div>
+    <div class="prog-arrow">›</div>
+    <div class="prog-step disabled" id="ps-detector" onclick="goToScreen('detector')">
+      <span class="num">3</span> Detector
+    </div>
+    <div class="prog-arrow">›</div>
+    <div class="prog-step disabled" id="ps-resumo" onclick="goToScreen('resumo')">
+      <span class="num">4</span> Resumo
+    </div>
+  </div>
+
+  <!-- ══════════════════ SCREEN 1: MENU ══════════════════ -->
+  <div id="screen-menu" class="screen active">
+    <div class="section-screen-title">Escolha a topologia do circuito LC</div>
+    <div class="section-screen-sub">Selecione qual elemento será variável para sintonia da estação.</div>
+
+    <div class="menu-grid">
+      <div class="topo-card" id="topo-cvar" onclick="selectTopologia('cvar')">
+        <div class="topo-name">Capacitor Variável</div>
+      </div>
+      <div class="topo-card" id="topo-lvar" onclick="selectTopologia('lvar')">
+        <div class="topo-name">Indutor Variável</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 1.5rem">
+      <button class="btn" id="btn-menu-next" onclick="goToScreen('lc')" disabled style="opacity:.4;pointer-events:none">
+        Continuar para cálculo LC →
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ SCREEN 2: LC ══════════════════ -->
+  <div id="screen-lc" class="screen">
+
+    <!-- CVAR sub-panel -->
+    <div id="panel-cvar" style="display:none">
+      <div class="section-screen-title">Capacitor Variável</div>
+      <div class="section-screen-sub">L fixo · C variável — determine a indutância necessária.</div>
+
+      <div class="eq-box">
+        <div class="eq-label">Indutância necessária para ressonância em f<sub>c</sub></div>
+        <div class="eq-rendered">
+          L &nbsp;=&nbsp;
+          <span class="eq-frac">
+            <span class="num">1</span>
+            <span class="den">(2π f<sub>c</sub>)² · C<sub>méd</sub></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="badge">1</span> Frequência da portadora</div>
+        <div class="field">
+          <label>f<sub>c</sub> [Hz]</label>
+          <div class="field-row">
+            <input type="number" id="cv-fc" value="810000" min="100" step="1000">
+            <span style="font-size:13px;color:var(--text-sec)">Hz</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="badge">2</span> Limites do capacitor variável</div>
+        <div class="field">
+          <label>C<sub>min</sub></label>
+          <div class="field-row">
+            <input type="number" id="cv-cmin" value="20" min="0.001">
+            <select id="cv-cmin-unit"><option value="p" selected>pF</option><option value="n">nF</option><option value="u">µF</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <label>C<sub>max</sub></label>
+          <div class="field-row">
+            <input type="number" id="cv-cmax" value="360" min="0.001">
+            <select id="cv-cmax-unit"><option value="p" selected>pF</option><option value="n">nF</option><option value="u">µF</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Modo de C<sub>1</sub></label>
+          <div class="radio-group" style="margin-bottom:10px">
+            <label class="radio-label"><input type="radio" name="cv-modo" value="medio" checked onchange="toggleCmanual()"> C<sub>médio</sub> automático</label>
+            <label class="radio-label"><input type="radio" name="cv-modo" value="manual" onchange="toggleCmanual()"> Manual</label>
+          </div>
+          <div id="cv-manual-row" class="field-row" style="display:none">
+            <input type="number" id="cv-c1-manual" value="200" min="0.001">
+            <select id="cv-c1-unit"><option value="p" selected>pF</option><option value="n">nF</option><option value="u">µF</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="calcCvar()">Calcular indutância</button>
+      </div>
+      <div id="cv-error" style="display:none" class="error"></div>
+      <div id="cv-results" style="display:none" class="card" style="margin-top:1rem">
+        <div class="card-title"><span class="badge">3</span> Resultado</div>
+        <div class="results">
+          <div class="result-row"><span class="rl">C<sub>1</sub> utilizado</span><span class="rv" id="cv-r-c1">—</span></div>
+          <div class="result-row"><span class="rl">L calculado</span><span class="rv hi" id="cv-r-L">—</span></div>
+          <div class="result-row"><span class="rl">Valor comercial sugerido</span><span class="rv" id="cv-r-Lcom">—</span></div>
+        </div>
+        <div class="btn-row" style="margin-top:1rem">
+          <button class="btn btn-continue" id="cv-btn-continue" onclick="goToScreen('detector')" disabled>
+            Continuar para o Detector →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LVAR sub-panel -->
+    <div id="panel-lvar" style="display:none">
+      <div class="section-screen-title">Indutor Variável</div>
+      <div class="section-screen-sub">C fixo · L variável — dimensione a bobina com fator de Nagaoka.</div>
+
+      <div class="eq-box">
+        <div class="eq-label">Indutância ideal para ressonância</div>
+        <div class="eq-rendered">
+          L<sub>ideal</sub> &nbsp;=&nbsp;
+          <span class="eq-frac">
+            <span class="num">1</span>
+            <span class="den">(2π f<sub>c</sub>)² · C<sub>1</sub></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="badge">1</span> Parâmetros do circuito</div>
+        <div class="field"><label>f<sub>c</sub> [Hz]</label>
+          <div class="field-row"><input type="number" id="lv-fc" value="810000" min="100" step="1000"><span style="font-size:13px;color:var(--text-sec)">Hz</span></div>
+        </div>
+        <div class="field"><label>C<sub>1</sub></label>
+          <div class="field-row"><input type="number" id="lv-c1" value="330" min="0.001"><select id="lv-c1-unit"><option value="p" selected>pF</option><option value="n">nF</option><option value="u">µF</option></select></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="badge">2</span> Dimensões da bobina</div>
+        <div class="info" style="margin-bottom:14px">Para bobina variável, insira <strong>metade</strong> do comprimento total. O resultado "N total" é o número final de espiras.</div>
+        <div class="field"><label>Diâmetro D [mm]</label><input type="number" id="lv-D" value="30" min="1"></div>
+        <div class="field"><label>Comprimento ℓ [mm] (metade do total)</label><input type="number" id="lv-l" value="40" min="1"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="calcLvar()">Calcular bobina</button>
+      </div>
+      <div id="lv-error" style="display:none" class="error"></div>
+      <div id="lv-results" style="display:none" class="card" style="margin-top:1rem">
+        <div class="card-title"><span class="badge">3</span> Resultado</div>
+        <div class="results">
+          <div class="result-row"><span class="rl">L ideal</span><span class="rv" id="lv-r-Lideal">—</span></div>
+          <div class="result-row"><span class="rl">Razão D/ℓ</span><span class="rv" id="lv-r-ratio">—</span></div>
+          <div class="result-row"><span class="rl">N espiras</span><span class="rv" id="lv-r-Npuro">—</span></div>
+          <div class="result-row"><span class="rl">Fator de Nagaoka k</span><span class="rv" id="lv-r-k">—</span></div>
+          <div class="result-row"><span class="rl">Perda</span><span class="rv" id="lv-r-perda">—</span></div>
+          <div class="result-row"><span class="rl">N espiras (fator de Nagaoka)</span><span class="rv hi" id="lv-r-N">—</span></div>
+          <div class="result-row"><span class="rl">N total de espiras</span><span class="rv hi" id="lv-r-Ntotal">—</span></div>
+          <div class="result-row"><span class="rl">L real (com N corrigido)</span><span class="rv" id="lv-r-Lreal">—</span></div>
+        </div>
+        <div class="btn-row" style="margin-top:1rem">
+          <button class="btn btn-continue" id="lv-btn-continue" onclick="goToScreen('detector')" disabled>
+            Continuar para o Detector →
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screen-lc -->
+
+  <!-- ══════════════════ SCREEN 3: DETECTOR ══════════════════ -->
+  <div id="screen-detector" class="screen">
+    <div class="section-screen-title">Circuito Detector</div>
+    <div class="section-screen-sub">Dimensione o filtro de envelope (R e C) do detector de diodo.</div>
+
+    <div class="eq-box">
+      <div class="eq-label">Constante de tempo τ = R · C₂ — deve satisfazer:</div>
+      <div class="eq-rendered">
+        <span class="eq-frac">
+          <span class="num">1</span>
+          <span class="den">2π f<sub>c</sub></span>
+        </span>
+        &nbsp; ≪ &nbsp; τ &nbsp; &lt; &nbsp;
+        <span class="eq-frac">
+          <span class="num">1</span>
+          <span class="den">2π f<sub>m</sub></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="badge">1</span> Frequências</div>
+      <div class="field"><label>f<sub>c</sub> [Hz]</label>
+        <div class="field-row"><input type="number" id="det-fc" value="810000" min="100" step="1000" oninput="updateIntervalo()"><span style="font-size:13px;color:var(--text-sec)">Hz</span></div>
+      </div>
+      <div class="field"><label>f<sub>m</sub> — frequência de áudio [Hz]</label>
+        <div class="field-row"><input type="number" id="det-fm" value="5000" min="100" step="500" oninput="updateIntervalo()"><span style="font-size:13px;color:var(--text-sec)">Hz</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge">2</span> Constante de tempo τ</div>
+      <div id="det-intervalo" class="info" style="margin-bottom:14px">—</div>
+      <div class="field"><label>τ manual [µs] (0 = automático, igual a 2/3 do intervalo)</label>
+        <div class="field-row"><input type="number" id="det-tau-manual" value="0" min="0" step="0.1"><span style="font-size:13px;color:var(--text-sec)">µs</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge">3</span> Resistência de saída</div>
+      <div class="radio-group" style="margin-bottom:12px">
+        <label class="radio-label"><input type="radio" name="det-r-modo" value="paralelo" checked onchange="toggleRfone()"> Com R de carga (R<sub>L</sub> // R<sub>fone</sub>)</label>
+        <label class="radio-label"><input type="radio" name="det-r-modo" value="simples" onchange="toggleRfone()"> Só fone (R = R<sub>fone</sub>)</label>
+      </div>
+      <div id="det-rl-row" class="field"><label>R<sub>L</sub> [Ω]</label><input type="number" id="det-rl" value="100000" min="1"></div>
+      <div class="field"><label>R<sub>fone</sub> [Ω]</label><input type="number" id="det-rfone" value="100000" min="1"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="calcDetector()">Calcular C₂ e métricas</button>
+    </div>
+    <div id="det-error" style="display:none" class="error"></div>
+    <div id="det-results" style="display:none" class="card" style="margin-top:1rem">
+      <div class="card-title"><span class="badge">4</span> Resultado</div>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-label">τ utilizado</div><div class="metric-value" id="det-r-tau">—</div><div class="metric-unit">µs</div></div>
+        <div class="metric"><div class="metric-label">C₂</div><div class="metric-value" id="det-r-c2">—</div><div class="metric-unit">pF</div></div>
+        <div class="metric"><div class="metric-label">R equivalente</div><div class="metric-value" id="det-r-R">—</div><div class="metric-unit">Ω</div></div>
+      </div>
+      <div class="btn-row" style="margin-top:1rem">
+        <button class="btn btn-continue" id="det-btn-continue" onclick="buildResumo(); goToScreen('resumo')" disabled>
+          Ver Resumo completo →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ SCREEN 4: RESUMO ══════════════════ -->
+  <div id="screen-resumo" class="screen">
+    <div class="section-screen-title">Resumo do Projeto</div>
+    <div class="section-screen-sub">Todos os valores calculados para o seu rádio de galena.</div>
+    <div id="resumo-content"></div>
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn btn-ghost" onclick="goToScreen('menu')">← Recomeçar</button>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+/* ════════════════════════════════════ DATA ════════════════════════════════════ */
+const NAGAOKA=[[0.05,0.98,2],[0.1,0.96,4],[0.2,0.92,8],[0.3,0.88,12],[0.4,0.85,15],[0.5,0.82,18],[0.6,0.79,21],[0.7,0.76,24],[0.8,0.74,26],[0.9,0.71,29],[1.0,0.69,31],[1.5,0.60,40],[2.0,0.53,47],[3.0,0.43,57],[4.0,0.37,63],[5.0,0.32,68],[10.0,0.20,80]];
+
+let state = {
+  topologia: null,       // 'cvar' | 'lvar'
+  lc: {},                // results from lc screen
+  detector: {}           // results from detector screen
+};
+
+/* ════════════════════════════════════ NAVIGATION ════════════════════════════════════ */
+const screenOrder = ['menu','lc','detector','resumo'];
+const psIds = ['ps-menu','ps-lc','ps-detector','ps-resumo'];
+
+function goToScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  updateProgress(id);
+  if(id==='detector') updateIntervalo();
+}
+
+function updateProgress(activeId){
+  const idx = screenOrder.indexOf(activeId);
+  psIds.forEach((pid,i)=>{
+    const el = document.getElementById(pid);
+    el.classList.remove('active','done','disabled');
+    if(i < idx) el.classList.add('done');
+    else if(i === idx) el.classList.add('active');
+    else el.classList.add('disabled');
+  });
+}
+
+/* ════════════════════════════════════ TOPOLOGIA ════════════════════════════════════ */
+function selectTopologia(t){
+  state.topologia = t;
+  document.querySelectorAll('.topo-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('topo-'+t).classList.add('selected');
+
+  const btn = document.getElementById('btn-menu-next');
+  btn.removeAttribute('disabled');
+  btn.style.opacity = '1';
+  btn.style.pointerEvents = 'auto';
+
+  // Update step label
+  document.getElementById('ps-lc-label').textContent = t === 'cvar' ? 'Cap. Variável' : 'Ind. Variável';
+}
+
+// Override goToScreen for 'lc' to show right sub-panel
+const _origGo = goToScreen;
+function goToScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  updateProgress(id);
+  if(id==='lc'){
+    document.getElementById('panel-cvar').style.display = state.topologia==='cvar' ? 'block' : 'none';
+    document.getElementById('panel-lvar').style.display = state.topologia==='lvar' ? 'block' : 'none';
+  }
+  if(id==='detector') updateIntervalo();
+}
+
+/* ════════════════════════════════════ HELPERS ════════════════════════════════════ */
+function toFarad(v,u){if(u==='p')return v*1e-12;if(u==='n')return v*1e-9;if(u==='u')return v*1e-6;return-1;}
+function interpNagaoka(r){
+  if(r<0.05||r>10)return null;
+  for(let i=0;i<NAGAOKA.length-1;i++){
+    const[x1,k1,p1]=NAGAOKA[i],[x2,k2,p2]=NAGAOKA[i+1];
+    if(r>=x1&&r<=x2){const t=(r-x1)/(x2-x1);return{k:k1+t*(k2-k1),p:p1+t*(p2-p1)};}
+  }
+  const l=NAGAOKA[NAGAOKA.length-1];return{k:l[1],p:l[2]};
+}
+function toggleCmanual(){const m=document.querySelector('input[name="cv-modo"]:checked').value;document.getElementById('cv-manual-row').style.display=m==='manual'?'flex':'none';}
+function toggleRfone(){const m=document.querySelector('input[name="det-r-modo"]:checked').value;document.getElementById('det-rl-row').style.display=m==='paralelo'?'block':'none';}
+function showError(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display='block';}
+function hideError(id){document.getElementById(id).style.display='none';}
+
+/* ════════════════════════════════════ CALC CVAR ════════════════════════════════════ */
+function calcCvar(){
+  hideError('cv-error');
+  const fc=parseFloat(document.getElementById('cv-fc').value);
+  if(!fc||fc<=0){showError('cv-error','Frequência inválida.');return;}
+  const cmin=toFarad(parseFloat(document.getElementById('cv-cmin').value),document.getElementById('cv-cmin-unit').value);
+  const cmax=toFarad(parseFloat(document.getElementById('cv-cmax').value),document.getElementById('cv-cmax-unit').value);
+  if(cmin<0||cmax<0){showError('cv-error','Unidade inválida.');return;}
+  const modo=document.querySelector('input[name="cv-modo"]:checked').value;
+  let c1;
+  if(modo==='medio'){c1=(cmin+cmax)/2;}
+  else{
+    c1=toFarad(parseFloat(document.getElementById('cv-c1-manual').value),document.getElementById('cv-c1-unit').value);
+    if(c1<0){showError('cv-error','Unidade de C manual inválida.');return;}
+    if(c1<cmin||c1>cmax){showError('cv-error','C1 fora do intervalo [Cmin, Cmax].');return;}
+  }
+  const L=1/((2*Math.PI*fc)**2*c1);
+  document.getElementById('cv-r-c1').textContent=(c1*1e12).toFixed(1)+' pF';
+  document.getElementById('cv-r-L').textContent=(L*1e6).toFixed(4)+' µH';
+  document.getElementById('cv-r-Lcom').textContent=Math.round(L*1e6/10)*10+' µH';
+  document.getElementById('cv-results').style.display='block';
+
+  state.lc = { topologia:'cvar', fc, cmin, cmax, c1, L, Lcom: Math.round(L*1e6/10)*10 };
+  document.getElementById('cv-btn-continue').removeAttribute('disabled');
+
+  // pre-fill detector fc
+  document.getElementById('det-fc').value = fc;
+  updateIntervalo();
+}
+
+/* ════════════════════════════════════ CALC LVAR ════════════════════════════════════ */
+function calcLvar(){
+  hideError('lv-error');
+  const fc=parseFloat(document.getElementById('lv-fc').value);
+  if(!fc||fc<=0){showError('lv-error','Frequência inválida.');return;}
+  const c1=toFarad(parseFloat(document.getElementById('lv-c1').value),document.getElementById('lv-c1-unit').value);
+  if(c1<0){showError('lv-error','Unidade inválida.');return;}
+  const D=parseFloat(document.getElementById('lv-D').value),l=parseFloat(document.getElementById('lv-l').value);
+  if(!D||!l||D<=0||l<=0){showError('lv-error','Dimensões inválidas.');return;}
+  const ratio=D/l;
+  if(ratio<0.05||ratio>10){showError('lv-error','Razão D/l fora de [0.05, 10].');return;}
+  const res=interpNagaoka(ratio);
+  const L_ideal=1/((2*Math.PI*fc)**2*c1);
+  const mu0=4*Math.PI*1e-7,A=Math.PI*(D/2/1000)**2,lm=l/1000;
+  const Npuro = Math.ceil(Math.sqrt((L_ideal * lm) / (mu0 * A)));
+  const N=Math.ceil(Npuro / Math.sqrt(res.k));
+  const Ntotal = 2 * N;
+  const Lreal = mu0 * res.k * A * N * N / lm;
+  document.getElementById('lv-r-Lideal').textContent=(L_ideal*1e6).toFixed(4)+' µH';
+  document.getElementById('lv-r-ratio').textContent=ratio.toFixed(3);
+  document.getElementById('lv-r-k').textContent=res.k.toFixed(4);
+  document.getElementById('lv-r-perda').textContent=res.p.toFixed(1)+'%';
+  document.getElementById('lv-r-N').textContent=N;
+  document.getElementById('lv-r-Npuro').textContent = Npuro;
+  document.getElementById('lv-r-Ntotal').textContent=Ntotal;
+  document.getElementById('lv-r-Lreal').textContent=(Lreal*1e6).toFixed(4)+' µH';
+  document.getElementById('lv-results').style.display='block';
+
+  state.lc = { topologia:'lvar', fc, c1, D, l, ratio, k:res.k, perda:res.p, N, Ntotal, L_ideal, Lreal };
+  document.getElementById('lv-btn-continue').removeAttribute('disabled');
+
+  document.getElementById('det-fc').value = fc;
+  updateIntervalo();
+}
+
+/* ════════════════════════════════════ DETECTOR ════════════════════════════════════ */
+function updateIntervalo(){
+  const fc=parseFloat(document.getElementById('det-fc').value)||810000;
+  const fm=parseFloat(document.getElementById('det-fm').value)||5000;
+  const tmin=1/(2*Math.PI*fc),tmax=1/(2*Math.PI*fm),tauto=tmin+(2/3)*(tmax-tmin);
+  document.getElementById('det-intervalo').textContent=
+    `Intervalo: ${(tmin*1e6).toFixed(4)} µs ≪ τ < ${(tmax*1e6).toFixed(4)} µs  |  τ automático (2/3): ${(tauto*1e6).toFixed(4)} µs`;
+}
+
+function calcDetector(){
+  hideError('det-error');
+  const fc=parseFloat(document.getElementById('det-fc').value),fm=parseFloat(document.getElementById('det-fm').value);
+  if(!fc||fc<=0||!fm||fm<=0){showError('det-error','Frequências inválidas.');return;}
+  const tmin=1/(2*Math.PI*fc),tmax=1/(2*Math.PI*fm),tauto=tmin+(2/3)*(tmax-tmin);
+  const tm=parseFloat(document.getElementById('det-tau-manual').value)||0;
+  const tau=tm>0?tm*1e-6:tauto;
+  if(tau<=tmin||tau>=tmax){showError('det-error',`τ fora do intervalo (${(tmin*1e6).toFixed(4)}–${(tmax*1e6).toFixed(4)} µs).`);return;}
+  const modo=document.querySelector('input[name="det-r-modo"]:checked').value;
+  let R;
+  if(modo==='paralelo'){
+    const rl=parseFloat(document.getElementById('det-rl').value),rf=parseFloat(document.getElementById('det-rfone').value);
+    if(!rl||!rf||rl<=0||rf<=0){showError('det-error','Resistências inválidas.');return;}
+    R=(rl*rf)/(rl+rf);
+  }else{
+    R=parseFloat(document.getElementById('det-rfone').value);
+    if(!R||R<=0){showError('det-error','Impedância inválida.');return;}
+  }
+  const C2=tau/R,ftau=1/(2*Math.PI*tau),ganho=1/Math.sqrt(1+(fm/ftau)**2),wc=2*Math.PI*fc;
+  document.getElementById('det-r-tau').textContent=(tau*1e6).toFixed(4);
+  document.getElementById('det-r-c2').textContent=(C2*1e12).toFixed(2);
+  document.getElementById('det-r-R').textContent=R.toFixed(1);
+  document.getElementById('det-results').style.display='block';
+
+  state.detector = { fc, fm, tau, R, C2, ftau, ganho, ripple:(1/(wc*tau))*100 };
+  document.getElementById('det-btn-continue').removeAttribute('disabled');
+}
+
+/* ════════════════════════════════════ RESUMO ════════════════════════════════════ */
+function buildResumo(){
+  const lc = state.lc, det = state.detector, t = state.topologia;
+  let html = '';
+
+  // Topologia chip
+  html += `<div class="summary-chip">${t==='cvar' ? 'Capacitor Variável' : 'Indutor Variável'}</div>`;
+
+  // LC section
+  html += `<div class="summary-section">`;
+  html += `<div class="summary-section-title">Circuito LC — ${t==='cvar'?'Capacitor Variável':'Indutor Variável'}</div>`;
+  html += `<div class="summary-grid">`;
+
+  if(t === 'cvar'){
+    html += item('Frequência f<sub>c</sub>', (lc.fc/1e3).toFixed(1)+' kHz');
+    html += item('C<sub>mín</sub>', (lc.cmin*1e12).toFixed(1)+' pF');
+    html += item('C<sub>máx</sub>', (lc.cmax*1e12).toFixed(1)+' pF');
+    html += item('C<sub>1</sub> utilizado', (lc.c1*1e12).toFixed(1)+' pF');
+    html += item('L calculado', (lc.L*1e6).toFixed(4)+' µH', true);
+    html += item('L comercial sugerido', lc.Lcom+' µH');
+  } else {
+    html += item('Frequência f<sub>c</sub>', (lc.fc/1e3).toFixed(1)+' kHz');
+    html += item('C<sub>1</sub>', (lc.c1*1e12).toFixed(1)+' pF');
+    html += item('Diâmetro D', lc.D+' mm');
+    html += item('Comprimento ℓ', lc.l+' mm');
+    html += item('Razão D/ℓ', lc.ratio.toFixed(3));
+    html += item('Fator Nagaoka k', lc.k.toFixed(4));
+    html += item('Perda (%)', lc.perda.toFixed(1)+'%');
+    html += item('N espiras (cálculo)', lc.N);
+    html += item('N total de espiras', lc.Ntotal, true);
+    html += item('L ideal', (lc.L_ideal*1e6).toFixed(4)+' µH');
+    html += item('L real', (lc.Lreal*1e6).toFixed(4)+' µH', true);
+  }
+  html += `</div></div>`;
+
+  // Detector section
+  if(det.tau){
+    html += `<div class="summary-section">`;
+    html += `<div class="summary-section-title">Circuito Detector</div>`;
+    html += `<div class="summary-grid">`;
+    html += item('f<sub>c</sub>', (det.fc/1e3).toFixed(1)+' kHz');
+    html += item('f<sub>m</sub>', (det.fm/1e3).toFixed(2)+' kHz');
+    html += item('τ', (det.tau*1e6).toFixed(4)+' µs');
+    html += item('R equivalente', det.R.toFixed(1)+' Ω');
+    html += item('C₂', (det.C2*1e12).toFixed(2)+' pF', true);
+    html += `</div></div>`;
+  }
+
+  document.getElementById('resumo-content').innerHTML = html;
+}
+
+function item(label, value, hi=false){
+  return `<div class="summary-item${hi?' hi':''}">
+    <div class="summary-item-label">${label}</div>
+    <div class="summary-item-value">${value}</div>
+  </div>`;
+}
+
+/* ════════════════════════════════════ INIT ════════════════════════════════════ */
+updateIntervalo();
+</script>
+</body>
+</html>
